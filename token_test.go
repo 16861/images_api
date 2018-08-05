@@ -15,6 +15,7 @@ const PORT = "3001"
 const GET_TOKEN_ROUTING = "/get_token"
 const ADD_USER_ROUTING = "/adduser"
 const CONVERT_IMAGE_ROUTING = "/convertimage"
+const CONVERT_IMAGES_ROUTING = "/convertimages"
 
 func getResponse(route string, data *bytes.Buffer) *http.Response {
 	res, _ := http.Post(
@@ -186,5 +187,120 @@ func TestConvertImage(t *testing.T) {
 
 	/* 	respBody, _ := ioutil.ReadAll(res.Body)
 	   	ioutil.WriteFile("body", respBody, 0644) */
+
+}
+
+func TestConvertImages(t *testing.T) {
+	user := store.User{
+		Name: "igor",
+		Pass: "123",
+	}
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(user)
+	res := getResponse(GET_TOKEN_ROUTING, b)
+
+	var token store.JwtToken
+	body, _ := ioutil.ReadAll(res.Body)
+	if err := json.Unmarshal(body, &token); err != nil {
+		t.Errorf("TestConvertImage: failed to unmarshal response fromn server")
+		return
+	}
+
+	res, err := http.Get("https://golang.org/doc/gopher/frontpage.png")
+	if err != nil {
+		t.Errorf("TestConvertImage: failed to fetch image")
+		return
+	}
+
+	defer res.Body.Close()
+	imgReq := store.ImageRequest{
+		Token: token.Token,
+		Images: []store.ImageStruct{
+			store.ImageStruct{
+				FileName: "gopher.png",
+			},
+			store.ImageStruct{
+				FileName: "clouds-cold.jpg",
+			},
+		},
+	}
+
+	res2, err := http.Get("https://images.pexels.com/photos/772803/pexels-photo-772803.jpeg?cs=srgb&dl=altitude-clouds-cold-772803.jpg&fm=jpg")
+	if err != nil {
+		t.Errorf("TestConvertImage: failed to fetch image")
+		return
+	}
+
+	defer res2.Body.Close()
+	imgReq.Images[0].Image, _ = ioutil.ReadAll(res.Body)
+	imgReq.Images[1].Image, _ = ioutil.ReadAll(res2.Body)
+
+	b = new(bytes.Buffer)
+	json.NewEncoder(b).Encode(imgReq)
+	res = getResponse(CONVERT_IMAGES_ROUTING, b)
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("TestConvertImage: wrong status code, actual: %d\n", res.StatusCode)
+		return
+	}
+
+	/* respBody, _ := ioutil.ReadAll(res.Body)
+	ioutil.WriteFile("body", respBody, 0644) */
+
+}
+
+func TestConvertImagesWrongToken(t *testing.T) {
+	token := store.JwtToken{
+		Token:    "sadffdsfsdfsdfsdfsdafsdfasdf",
+		UserName: "igor",
+	}
+
+	res, err := http.Get("https://golang.org/doc/gopher/frontpage.png")
+	if err != nil {
+		t.Errorf("TestConvertImageWorngToken: failed to fetch image gopher.png")
+		return
+	}
+
+	defer res.Body.Close()
+	imgReq := store.ImageRequest{
+		Token: token.Token,
+		Images: []store.ImageStruct{
+			store.ImageStruct{
+				FileName: "gopher.png",
+			},
+			store.ImageStruct{
+				FileName: "clouds-cold.jpg",
+			},
+		},
+	}
+
+	res2, err := http.Get("https://images.pexels.com/photos/772803/pexels-photo-772803.jpeg?cs=srgb&dl=altitude-clouds-cold-772803.jpg&fm=jpg")
+	if err != nil {
+		t.Errorf("TestConvertImageWorngToken: failed to fetch image clouds.jpg")
+		return
+	}
+
+	defer res2.Body.Close()
+	imgReq.Images[0].Image, _ = ioutil.ReadAll(res.Body)
+	imgReq.Images[1].Image, _ = ioutil.ReadAll(res2.Body)
+
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(imgReq)
+	res = getResponse(CONVERT_IMAGES_ROUTING, b)
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusForbidden {
+		t.Errorf("TestConvertImageWorngToken: wrong status code, actual: %d\n", res.StatusCode)
+		return
+	}
+
+	respBody, _ := ioutil.ReadAll(res.Body)
+	if len(respBody) > 0 {
+		t.Errorf("TestConvertImageWorngToken: there is some data in body: %d\n", len(respBody))
+		return
+	}
 
 }

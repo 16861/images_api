@@ -32,8 +32,16 @@ type Session struct {
 type Sessions []Session
 
 type ImageStructResponse struct {
-	FileName string `json:"file_name"`
-	Image    string `json:"image_b64"`
+	FileName string `json:"filename"`
+	Image    string `json:"image"`
 }
 
 type ImagesResponse []ImageStructResponse
+
+type ImageResponseFromPython struct {
+	FileName string `json:"filename"`
+	Image    string `json:"image"`
+	Format   string `json:"format,omitempty"`
+}
+
+type ImageResponsesFromPython []ImageResponseFromPython

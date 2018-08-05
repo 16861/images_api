@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -57,7 +58,7 @@ func (c *Controller) GetToken(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (c *Controller) ConvertImage(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ConvertImageWithFileBuffer(w http.ResponseWriter, r *http.Request) {
 	var img ImageRequest
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -111,6 +112,62 @@ func (c *Controller) ConvertImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(respPayload)
+	return
+}
+
+func (c *Controller) ConvertImageFromApi(w http.ResponseWriter, r *http.Request) {
+	var img ImageRequest
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatalln("ConverImageFromApi: error while reading from request body, err: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	defer r.Body.Close()
+
+	if err := json.Unmarshal(body, &img); err != nil {
+		w.WriteHeader(422)
+		log.Println(err)
+
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			log.Fatalln("Error ConvertImage unmarshalling data", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if !c.Repository.CheckIfTokenIsValid(img.Token) {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(img.Images)
+	resp, err := http.Post("http://localhost:5000/compressImages", "application/json", buf)
+	if err != nil {
+		log.Printf("ConvertImage: error while trying to get compressed img from python, err: %s,\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var imFromApi []ImageStruct
+	dataFromApi, _ := ioutil.ReadAll(resp.Body)
+	//ioutil.WriteFile("respFromApi", dataFromApi, 0644)
+
+	err = json.Unmarshal(dataFromApi, &imFromApi)
+	if err != nil {
+		log.Println("ConvertImage: error on unmarshal json from api")
+	}
+	//ioutil.WriteFile(imFromApi.FileName, jpgFromApi, 0644)
+	//log.Println("ConvertImage: from api " + imFromApi.FileName)
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	io.Writer(w).Write(dataFromApi)
+	//json.NewEncoder(w).Encode(respPayload)
 	return
 }
 

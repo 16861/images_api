@@ -1,9 +1,9 @@
 from PIL import Image
 from os import listdir
 
-PATH = "/home/igor/go/src/rest-and-go/imgs/"
+PATH = "imgs/"
 
 for pth in listdir(PATH):
     img = Image.open(PATH + pth)
-    img.save("/home/igor/go/src/rest-and-go/imgs/"+"COMPRESSED_"+pth.split("//")[-1], quality=30)
+    img.save("imgs/"+"COMPRESSED_"+pth.split("//")[-1], quality=30)
 

@@ -29,13 +29,19 @@ var routes = Routes{
 		"ConvertImage",
 		"POST",
 		"/convertimage",
-		controller.ConvertImage,
+		controller.ConvertImageWithFileBuffer,
 	},
 	Route{
 		"AddUser",
 		"POST",
 		"/adduser",
 		controller.AddUser,
+	},
+	Route{
+		"ConvertImages",
+		"POST",
+		"/convertimages",
+		controller.ConvertImageFromApi,
 	},
 	/*Route{
 		"ConvertImages",
